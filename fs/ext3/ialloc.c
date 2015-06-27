@@ -288,6 +288,8 @@ static int find_group_other(struct super_block *sb, struct inode *parent)
 	 */
 	group = parent_group;
 	desc = ext3_get_group_desc (sb, group, NULL);
+        printk(KERN_INFO "desc->bg_free_inodes_count= %d \n",desc->bg_free_inodes_count);
+        printk(KERN_INFO "desc->bg_free_blocks_count= %d \n",desc->bg_free_blocks_count);
 	if (desc && le16_to_cpu(desc->bg_free_inodes_count) &&
 			le16_to_cpu(desc->bg_free_blocks_count))
 		return group;
@@ -381,7 +383,7 @@ struct inode *ext3_new_inode(handle_t *handle, struct inode * dir,
 	err = -ENOSPC;
 	if (group == -1)
 		goto out;
-
+        printk(KERN_INFO "ext3_new_inode: sbi->s_groups_count = %d \n", sbi->s_groups_count);
 	for (i = 0; i < sbi->s_groups_count; i++) {
 		err = -EIO;
 
@@ -413,6 +415,7 @@ repeat_in_this_group:
 					"call ext3_journal_dirty_metadata");
 				err = ext3_journal_dirty_metadata(handle,
 								bitmap_bh);
+                                printk(KERN_INFO "bitmap_bh %u", bitmap_bh->b_blocknr);
 				if (err)
 					goto fail;
 				goto got;
@@ -458,6 +461,7 @@ got:
 	spin_unlock(sb_bgl_lock(sbi, group));
 	BUFFER_TRACE(bh2, "call ext3_journal_dirty_metadata");
 	err = ext3_journal_dirty_metadata(handle, bh2);
+        printk(KERN_INFO "bh2(gdp->free inode-1) = %u", bh2->b_blocknr);
 	if (err) goto fail;
 
 	percpu_counter_dec(&sbi->s_freeinodes_counter);

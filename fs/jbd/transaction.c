@@ -165,8 +165,9 @@ repeat_locked:
 	 */
 	spin_lock(&transaction->t_handle_lock);
 	needed = transaction->t_outstanding_credits + nblocks;
-
+        printk(KERN_INFO "transaction->t_outstanding_credits: %d \n",transaction->t_outstanding_credits);
 	if (needed > journal->j_max_transaction_buffers) {
+          printk(KERN_INFO "journal->j_max_transaction_buffers: %d \n",journal->j_max_transaction_buffers);
 		/*
 		 * If the current transaction is already too large, then start
 		 * to commit it: we can then go back and attach this handle to
@@ -272,7 +273,7 @@ handle_t *journal_start(journal_t *journal, int nblocks)
 {
 	handle_t *handle = journal_current_handle();
 	int err;
-
+       
 	if (!journal)
 		return ERR_PTR(-EROFS);
 
@@ -526,7 +527,9 @@ do_get_write_access(handle_t *handle, struct journal_head *jh,
 	char *frozen_buffer = NULL;
 	int need_copy = 0;
 
-	if (is_handle_aborted(handle))
+        dump_stack();
+        printk(KERN_INFO "access/handle_credits= %d\n", handle->h_buffer_credits);
+        if (is_handle_aborted(handle))
 		return -EROFS;
 
 	transaction = handle->h_transaction;
@@ -534,7 +537,7 @@ do_get_write_access(handle_t *handle, struct journal_head *jh,
 
 	jbd_debug(5, "journal_head %p, force_copy %d\n", jh, force_copy);
 
-	JBUFFER_TRACE(jh, "entry");
+	JBUFFER_TRACE(jh, "do_get_write_access:entry");
 repeat:
 	bh = jh2bh(jh);
 
@@ -733,7 +736,7 @@ out:
 	if (unlikely(frozen_buffer))	/* It's usually NULL */
 		jbd_free(frozen_buffer, bh->b_size);
 
-	JBUFFER_TRACE(jh, "exit");
+	JBUFFER_TRACE(jh, "do_get_write_access:exit");
 	return error;
 }
 
@@ -794,7 +797,7 @@ int journal_get_create_access(handle_t *handle, struct buffer_head *bh)
 		goto out;
 	err = 0;
 
-	JBUFFER_TRACE(jh, "entry");
+	JBUFFER_TRACE(jh, "journal_get_create_access:entry");
 	/*
 	 * The buffer may already belong to this transaction due to pre-zeroing
 	 * in the filesystem's new_block code.  It may also be on the previous,
@@ -883,7 +886,7 @@ int journal_get_undo_access(handle_t *handle, struct buffer_head *bh)
 	struct journal_head *jh = journal_add_journal_head(bh);
 	char *committed_data = NULL;
 
-	JBUFFER_TRACE(jh, "entry");
+	JBUFFER_TRACE(jh, "journal_get_undo_access:entry");
 
 	/*
 	 * Do this first --- it can drop the journal lock, so we want to
@@ -955,7 +958,7 @@ int journal_dirty_data(handle_t *handle, struct buffer_head *bh)
 		return ret;
 
 	jh = journal_add_journal_head(bh);
-	JBUFFER_TRACE(jh, "entry");
+	JBUFFER_TRACE(jh, "journal_dirty_data:entry");
 
 	/*
 	 * The buffer could *already* be dirty.  Writeout can start
@@ -994,7 +997,7 @@ int journal_dirty_data(handle_t *handle, struct buffer_head *bh)
 	}
 
 	if (jh->b_transaction) {
-		JBUFFER_TRACE(jh, "has transaction");
+		JBUFFER_TRACE(jh, "journal_dirty_data:has transaction");
 		if (jh->b_transaction != handle->h_transaction) {
 			JBUFFER_TRACE(jh, "belongs to older transaction");
 			J_ASSERT_JH(jh, jh->b_transaction ==
@@ -1110,7 +1113,7 @@ no_journal:
 		BUFFER_TRACE(bh, "brelse");
 		__brelse(bh);
 	}
-	JBUFFER_TRACE(jh, "exit");
+	JBUFFER_TRACE(jh, "journal_dirty_data:exit");
 	journal_put_journal_head(jh);
 	return ret;
 }
@@ -1139,9 +1142,10 @@ int journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 	transaction_t *transaction = handle->h_transaction;
 	journal_t *journal = transaction->t_journal;
 	struct journal_head *jh = bh2jh(bh);
-
+        dump_stack();
+        printk(KERN_INFO "dirty_metadata/handle_credits= %d", handle->h_buffer_credits);       
 	jbd_debug(5, "journal_head %p\n", jh);
-	JBUFFER_TRACE(jh, "entry");
+	JBUFFER_TRACE(jh, "journal_dirty_metadata:entry");
 	if (is_handle_aborted(handle))
 		goto out;
 
@@ -1200,7 +1204,7 @@ int journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 out_unlock_bh:
 	jbd_unlock_bh_state(bh);
 out:
-	JBUFFER_TRACE(jh, "exit");
+	JBUFFER_TRACE(jh, "journal_dirty_metadata:exit");
 	return 0;
 }
 
@@ -1212,7 +1216,7 @@ out:
 void
 journal_release_buffer(handle_t *handle, struct buffer_head *bh)
 {
-	BUFFER_TRACE(bh, "entry");
+	BUFFER_TRACE(bh, "journal_release_buffer:entry");
 }
 
 /**
@@ -1241,7 +1245,7 @@ int journal_forget (handle_t *handle, struct buffer_head *bh)
 	int err = 0;
 	int was_modified = 0;
 
-	BUFFER_TRACE(bh, "entry");
+	BUFFER_TRACE(bh, "journal_forget:entry");
 
 	jbd_lock_bh_state(bh);
 	spin_lock(&journal->j_list_lock);
@@ -1361,6 +1365,7 @@ drop:
  */
 int journal_stop(handle_t *handle)
 {
+  printk(KERN_INFO "journal_stop\n");
 	transaction_t *transaction = handle->h_transaction;
 	journal_t *journal = transaction->t_journal;
 	int err;
@@ -1849,7 +1854,7 @@ static int journal_unmap_buffer(journal_t *journal, struct buffer_head *bh,
 	struct journal_head *jh;
 	int may_free = 1;
 
-	BUFFER_TRACE(bh, "entry");
+	BUFFER_TRACE(bh, "journal_unmap_buffer:entry");
 
 retry:
 	/*

@@ -14,6 +14,7 @@
 
 long ext3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+  printk(KERN_INFO "ext3_ioctl\n");
 	struct inode *inode = file_inode(filp);
 	struct ext3_inode_info *ei = EXT3_I(inode);
 	unsigned int flags;

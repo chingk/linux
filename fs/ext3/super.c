@@ -1586,6 +1586,7 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 			jbd_debug(2, "truncating inode %lu to %Ld bytes\n",
 				  inode->i_ino, inode->i_size);
 			ext3_truncate(inode);
+                        printk(KERN_INFO "ext3_orphan_cleanup -> ext3_truncate\n");
 			nr_truncates++;
 		} else {
 			printk(KERN_DEBUG
@@ -1848,6 +1849,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 				"error: bad blocksize %d", blocksize);
 			goto out_fail;
 		}
+		printk(KERN_INFO "sb->s_blocksize_bits: %d \n", sb->s_blocksize_bits);
 		logic_sb_block = (sb_block * EXT3_MIN_BLOCK_SIZE) / blocksize;
 		offset = (sb_block * EXT3_MIN_BLOCK_SIZE) % blocksize;
 		bh = sb_bread(sb, logic_sb_block);

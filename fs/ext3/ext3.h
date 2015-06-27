@@ -1262,6 +1262,9 @@ int __ext3_journal_stop(const char *where, handle_t *handle);
 
 static inline handle_t *ext3_journal_start(struct inode *inode, int nblocks)
 {
+        /* dump_stack(); */
+        printk(KERN_INFO "--> ext3_journal_start %d nblocks\n", nblocks);
+
 	return ext3_journal_start_sb(inode->i_sb, nblocks);
 }
 

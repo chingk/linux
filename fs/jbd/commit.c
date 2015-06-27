@@ -533,7 +533,7 @@ void journal_commit_transaction(journal_t *journal)
 	descriptor = NULL;
 	bufs = 0;
 	while (commit_transaction->t_buffers) {
-
+          printk(KERN_INFO "commit t_buffers 1");
 		/* Find the next buffer to be journaled... */
 
 		jh = commit_transaction->t_buffers;
@@ -671,6 +671,7 @@ void journal_commit_transaction(journal_t *journal)
 
 start_journal_io:
 			for (i = 0; i < bufs; i++) {
+                          printk(KERN_INFO "start_journal_io\n");
 				struct buffer_head *bh = wbuf[i];
 				lock_buffer(bh);
 				clear_buffer_dirty(bh);

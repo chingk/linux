@@ -792,7 +792,7 @@ do_get_write_access(handle_t *handle, struct journal_head *jh,
 
 	jbd_debug(5, "journal_head %p, force_copy %d\n", jh, force_copy);
 
-	JBUFFER_TRACE(jh, "entry");
+	JBUFFER_TRACE(jh, "do_get_write_access:entry");
 repeat:
 	bh = jh2bh(jh);
 
@@ -995,7 +995,7 @@ out:
 	if (unlikely(frozen_buffer))	/* It's usually NULL */
 		jbd2_free(frozen_buffer, bh->b_size);
 
-	JBUFFER_TRACE(jh, "exit");
+	JBUFFER_TRACE(jh, "do_get_write_access:exit");
 	return error;
 }
 

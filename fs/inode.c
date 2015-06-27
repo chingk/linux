@@ -207,11 +207,14 @@ static struct inode *alloc_inode(struct super_block *sb)
 {
 	struct inode *inode;
 
-	if (sb->s_op->alloc_inode)
+	if (sb->s_op->alloc_inode){
 		inode = sb->s_op->alloc_inode(sb);
-	else
+                //printk(KERN_INFO "alloc_inode_from_sb\n");
+        }  
+	else{
+                //printk(KERN_INFO "alloc_inode/kmem_cache_alloc\n");
 		inode = kmem_cache_alloc(inode_cachep, GFP_KERNEL);
-
+        }
 	if (!inode)
 		return NULL;
 
@@ -224,8 +227,8 @@ static struct inode *alloc_inode(struct super_block *sb)
 	}
 
 	return inode;
+        
 }
-
 void free_inode_nonrcu(struct inode *inode)
 {
 	kmem_cache_free(inode_cachep, inode);

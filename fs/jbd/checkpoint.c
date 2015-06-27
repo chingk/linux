@@ -668,7 +668,7 @@ int __journal_remove_checkpoint(struct journal_head *jh)
 	journal_t *journal;
 	int ret = 0;
 
-	JBUFFER_TRACE(jh, "entry");
+	JBUFFER_TRACE(jh, "__journal_remove_checkpoint:entry");
 
 	if ((transaction = jh->b_cp_transaction) == NULL) {
 		JBUFFER_TRACE(jh, "not on transaction");
@@ -721,7 +721,7 @@ out:
 void __journal_insert_checkpoint(struct journal_head *jh,
 			       transaction_t *transaction)
 {
-	JBUFFER_TRACE(jh, "entry");
+	JBUFFER_TRACE(jh, "__journal_insert_checkpoint:entry");
 	J_ASSERT_JH(jh, buffer_dirty(jh2bh(jh)) || buffer_jbddirty(jh2bh(jh)));
 	J_ASSERT_JH(jh, jh->b_cp_transaction == NULL);
 

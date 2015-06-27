@@ -128,7 +128,8 @@ static unsigned long blocks_for_truncate(struct inode *inode)
  * be able to restart the transaction at a conventient checkpoint to make
  * sure we don't overflow the journal.
  *
- * start_transaction gets us a new handle for a truncate transaction,
+ * start_transaction
+ gets us a new handle for a truncate transaction,
  * and extend_transaction tries to extend the existing one a bit.  If
  * extend fails, we need to propagate the failure up and restart the
  * transaction in the top-level truncate loop. --sct
@@ -136,9 +137,10 @@ static unsigned long blocks_for_truncate(struct inode *inode)
 static handle_t *start_transaction(struct inode *inode)
 {
 	handle_t *result;
-
+        /* dump_stack(); */
 	result = ext3_journal_start(inode, blocks_for_truncate(inode));
-	if (!IS_ERR(result))
+        printk(KERN_INFO "start_transaction/journal_start %d nblocks\n",blocks_for_truncate(inode));
+        if (!IS_ERR(result))
 		return result;
 
 	ext3_std_error(inode->i_sb, PTR_ERR(result));
@@ -238,7 +240,7 @@ void ext3_evict_inode (struct inode *inode)
 
 	if (!want_delete)
 		goto no_delete;
-
+        printk(KERN_INFO "ext3_evict_inode ->start_transaction \n");
 	handle = start_transaction(inode);
 	if (IS_ERR(handle)) {
 		/*
@@ -254,8 +256,11 @@ void ext3_evict_inode (struct inode *inode)
 		handle->h_sync = 1;
 	inode->i_size = 0;
 	if (inode->i_blocks)
-		ext3_truncate(inode);
-	/*
+          {
+            ext3_truncate(inode);
+            printk(KERN_INFO "ext3_evict_inode -> ext3_truncate\n");
+          }
+        /*
 	 * Kill off the orphan record created when the inode lost the last
 	 * link.  Note that ext3_orphan_del() has to be able to cope with the
 	 * deletion of a non-existent orphan - ext3_truncate() could
@@ -1021,6 +1026,7 @@ out:
 static int ext3_get_block(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create)
 {
+        printk(KERN_INFO "ext3_get_block start\n");
 	handle_t *handle = ext3_journal_current_handle();
 	int ret = 0, started = 0;
 	unsigned max_blocks = bh_result->b_size >> inode->i_blkbits;
@@ -1030,6 +1036,7 @@ static int ext3_get_block(struct inode *inode, sector_t iblock,
 			max_blocks = DIO_MAX_BLOCKS;
 		handle = ext3_journal_start(inode, DIO_CREDITS +
 				EXT3_MAXQUOTAS_TRANS_BLOCKS(inode->i_sb));
+                printk(KERN_INFO "ext3_get_block/journal_start %d nblocks\n", DIO_CREDITS +EXT3_MAXQUOTAS_TRANS_BLOCKS(inode->i_sb));
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
 			goto out;
@@ -1235,6 +1242,7 @@ static void ext3_truncate_failed_write(struct inode *inode)
 {
 	truncate_inode_pages(inode->i_mapping, inode->i_size);
 	ext3_truncate(inode);
+        printk(KERN_INFO "ext3_truncate_failed_write -> ext3_truncate\n");
 }
 
 /*
@@ -1251,6 +1259,7 @@ static int ext3_write_begin(struct file *file, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned flags,
 				struct page **pagep, void **fsdata)
 {
+        printk(KERN_INFO "wb- ext3_write_begin \n");
 	struct inode *inode = mapping->host;
 	int ret;
 	handle_t *handle;
@@ -1273,15 +1282,17 @@ retry:
 	if (!page)
 		return -ENOMEM;
 	*pagep = page;
-
+        
 	handle = ext3_journal_start(inode, needed_blocks);
-	if (IS_ERR(handle)) {
+        printk(KERN_INFO "wb- ext3_write_begin/journal_start %d needed_blocks", needed_blocks);
+        if (IS_ERR(handle)) {
 		unlock_page(page);
 		page_cache_release(page);
 		ret = PTR_ERR(handle);
 		goto out;
 	}
 	ret = __block_write_begin(page, pos, len, ext3_get_block);
+        printk(KERN_INFO "wb- block_write_begin\n");
 	if (ret)
 		goto write_begin_failed;
 
@@ -1339,6 +1350,7 @@ static int journal_dirty_data_fn(handle_t *handle, struct buffer_head *bh)
 /* For write_end() in data=journal mode */
 static int write_end_fn(handle_t *handle, struct buffer_head *bh)
 {
+        printk(KERN_INFO "write_end_fn(journal mode)\n");
 	if (!buffer_mapped(bh) || buffer_freed(bh))
 		return 0;
 	set_buffer_uptodate(bh);
@@ -1374,6 +1386,7 @@ static int ext3_ordered_write_end(struct file *file,
 				loff_t pos, unsigned len, unsigned copied,
 				struct page *page, void *fsdata)
 {
+  printk(KERN_INFO "ext3_ordered_write_end \n");
 	handle_t *handle = ext3_journal_current_handle();
 	struct inode *inode = file->f_mapping->host;
 	unsigned from, to;
@@ -1411,6 +1424,7 @@ static int ext3_writeback_write_end(struct file *file,
 				loff_t pos, unsigned len, unsigned copied,
 				struct page *page, void *fsdata)
 {
+  printk(KERN_INFO "ext3_writeback_write_end\n");
 	handle_t *handle = ext3_journal_current_handle();
 	struct inode *inode = file->f_mapping->host;
 	int ret;
@@ -1438,6 +1452,7 @@ static int ext3_journalled_write_end(struct file *file,
 				loff_t pos, unsigned len, unsigned copied,
 				struct page *page, void *fsdata)
 {
+  printk(KERN_INFO "ext3_journalled_write_end \n");
 	handle_t *handle = ext3_journal_current_handle();
 	struct inode *inode = mapping->host;
 	struct ext3_inode_info *ei = EXT3_I(inode);
@@ -1574,6 +1589,7 @@ static int buffer_unmapped(handle_t *handle, struct buffer_head *bh)
 static int ext3_ordered_writepage(struct page *page,
 				struct writeback_control *wbc)
 {
+        printk(KERN_INFO "ext3_ordered_writepage \n");
 	struct inode *inode = page->mapping->host;
 	struct buffer_head *page_bufs;
 	handle_t *handle = NULL;
@@ -1653,7 +1669,8 @@ out_fail:
 static int ext3_writeback_writepage(struct page *page,
 				struct writeback_control *wbc)
 {
-	struct inode *inode = page->mapping->host;
+        printk(KERN_INFO "ext3_writeback_writepage \n");
+        struct inode *inode = page->mapping->host;
 	handle_t *handle = NULL;
 	int ret = 0;
 	int err;
@@ -1702,6 +1719,7 @@ out_fail:
 static int ext3_journalled_writepage(struct page *page,
 				struct writeback_control *wbc)
 {
+        printk(KERN_INFO "ext3_journalled_writepage \n");
 	struct inode *inode = page->mapping->host;
 	handle_t *handle = NULL;
 	int ret = 0;
@@ -1823,6 +1841,7 @@ static int ext3_releasepage(struct page *page, gfp_t wait)
 static ssize_t ext3_direct_IO(int rw, struct kiocb *iocb,
 			struct iov_iter *iter, loff_t offset)
 {
+  printk(KERN_INFO "ext3_direct_IO \n");
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	struct ext3_inode_info *ei = EXT3_I(inode);
@@ -1978,12 +1997,18 @@ static const struct address_space_operations ext3_journalled_aops = {
 
 void ext3_set_aops(struct inode *inode)
 {
-	if (ext3_should_order_data(inode))
+  if (ext3_should_order_data(inode)){
 		inode->i_mapping->a_ops = &ext3_ordered_aops;
-	else if (ext3_should_writeback_data(inode))
+                printk(KERN_INFO "ext3 journal mode = ordered\n");
+  }
+  else if (ext3_should_writeback_data(inode)){
 		inode->i_mapping->a_ops = &ext3_writeback_aops;
-	else
+                printk(KERN_INFO "ext3 journal mode = writeback\n");
+  }
+  else{
 		inode->i_mapping->a_ops = &ext3_journalled_aops;
+                printk(KERN_INFO "ext3 journal mode = journalled\n");
+  }
 }
 
 /*
@@ -1994,6 +2019,7 @@ void ext3_set_aops(struct inode *inode)
  */
 static int ext3_block_truncate_page(struct inode *inode, loff_t from)
 {
+  printk(KERN_INFO "ext3_block_truncate_page \n");
 	ext3_fsblk_t index = from >> PAGE_CACHE_SHIFT;
 	unsigned offset = from & (PAGE_CACHE_SIZE - 1);
 	unsigned blocksize, iblock, length, pos;
@@ -2055,7 +2081,8 @@ static int ext3_block_truncate_page(struct inode *inode, loff_t from)
 	/* data=writeback mode doesn't need transaction to zero-out data */
 	if (!ext3_should_writeback_data(inode)) {
 		/* We journal at most one block */
-		handle = ext3_journal_start(inode, 1);
+          printk(KERN_INFO "ext3_block_truncate_page/journal_start\n");
+          handle = ext3_journal_start(inode, 1);
 		if (IS_ERR(handle)) {
 			clear_highpage(page);
 			flush_dcache_page(page);
@@ -2261,6 +2288,7 @@ static void ext3_free_data(handle_t *handle, struct inode *inode,
 			   struct buffer_head *this_bh,
 			   __le32 *first, __le32 *last)
 {
+  printk(KERN_INFO "ext3_free_data \n");
 	ext3_fsblk_t block_to_free = 0;    /* Starting block # of a run */
 	unsigned long count = 0;	    /* Number of blocks in the run */
 	__le32 *block_to_free_p = NULL;	    /* Pointer into inode/ind
@@ -2512,6 +2540,7 @@ void ext3_truncate(struct inode *inode)
 	if (inode->i_size == 0 && ext3_should_writeback_data(inode))
 		ext3_set_inode_state(inode, EXT3_STATE_FLUSH_ON_CLOSE);
 
+        printk(KERN_INFO "ext3_truncate -> start_transaction \n");
 	handle = start_transaction(inode);
 	if (IS_ERR(handle))
 		goto out_notrans;
@@ -3033,6 +3062,7 @@ static int ext3_do_update_inode(handle_t *handle,
 				struct inode *inode,
 				struct ext3_iloc *iloc)
 {
+  //printk(KERN_INFO "ext3_do_update_inode\n");
 	struct ext3_inode *raw_inode = ext3_raw_inode(iloc);
 	struct ext3_inode_info *ei = EXT3_I(inode);
 	struct buffer_head *bh = iloc->bh;
@@ -3126,6 +3156,7 @@ again:
 				handle->h_sync = 1;
 				err = ext3_journal_dirty_metadata(handle,
 						EXT3_SB(sb)->s_sbh);
+                                printk(KERN_INFO "ext3_do_update_inode/sv->sbh : %u", EXT3_SB(sb)->s_sbh->b_blocknr);
 				/* get our lock and start over */
 				goto again;
 			}
@@ -3152,6 +3183,7 @@ again:
 	BUFFER_TRACE(bh, "call ext3_journal_dirty_metadata");
 	unlock_buffer(bh);
 	rc = ext3_journal_dirty_metadata(handle, bh);
+        printk(KERN_INFO "ext3_do_update_inode/iloc_bh : %u" , bh->b_blocknr);
 	if (!err)
 		err = rc;
 	ext3_clear_inode_state(inode, EXT3_STATE_NEW);
@@ -3201,6 +3233,7 @@ out_brelse:
  */
 int ext3_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
+        printk(KERN_INFO "ext3_write_inode \n");
 	if (WARN_ON_ONCE(current->flags & PF_MEMALLOC))
 		return 0;
 
@@ -3240,7 +3273,8 @@ int ext3_write_inode(struct inode *inode, struct writeback_control *wbc)
  */
 int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+        printk(KERN_INFO "ext3_setattr\n");
+        struct inode *inode = dentry->d_inode;
 	int error, rc = 0;
 	const unsigned int ia_valid = attr->ia_valid;
 
@@ -3258,6 +3292,8 @@ int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 		 * inode block, ? - but truncate inode update has it) */
 		handle = ext3_journal_start(inode, EXT3_MAXQUOTAS_INIT_BLOCKS(inode->i_sb)+
 					EXT3_MAXQUOTAS_DEL_BLOCKS(inode->i_sb)+3);
+                printk(KERN_INFO "ext3_setattr/journal_start %d nblocks\n", EXT3_MAXQUOTAS_INIT_BLOCKS(inode->i_sb)+
+                       EXT3_MAXQUOTAS_DEL_BLOCKS(inode->i_sb)+3);
 		if (IS_ERR(handle)) {
 			error = PTR_ERR(handle);
 			goto err_out;
@@ -3285,6 +3321,7 @@ int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 		handle_t *handle;
 
 		handle = ext3_journal_start(inode, 3);
+                printk(KERN_INFO "ext3_setattr/ext3_journal_start 3 nblocks\n");
 		if (IS_ERR(handle)) {
 			error = PTR_ERR(handle);
 			goto err_out;
@@ -3320,6 +3357,7 @@ int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 	if ((attr->ia_valid & ATTR_SIZE) &&
 	    attr->ia_size != i_size_read(inode)) {
 		truncate_setsize(inode, attr->ia_size);
+                printk(KERN_INFO "ext3_setattr -> ext3_truncate \n");
 		ext3_truncate(inode);
 	}
 
@@ -3380,8 +3418,8 @@ static int ext3_writepage_trans_blocks(struct inode *inode)
 	 * we will be updating only the data blocks + inodes */
 	ret += EXT3_MAXQUOTAS_TRANS_BLOCKS(inode->i_sb);
 #endif
-
-	return ret;
+        printk(KERN_INFO "wb- ext3_writepg_transaction_blocks: %d \nwb- ext3-blks_per_pg: %d\n",ret, bpp);
+        return ret;
 }
 
 /*
@@ -3391,6 +3429,7 @@ static int ext3_writepage_trans_blocks(struct inode *inode)
 int ext3_mark_iloc_dirty(handle_t *handle,
 		struct inode *inode, struct ext3_iloc *iloc)
 {
+  //        printk(KERN_INFO "ext3_mark_iloc_dirty\n");
 	int err = 0;
 
 	/* the do_update_inode consumes one bh->b_count */
@@ -3411,6 +3450,7 @@ int
 ext3_reserve_inode_write(handle_t *handle, struct inode *inode,
 			 struct ext3_iloc *iloc)
 {
+       
 	int err = 0;
 	if (handle) {
 		err = ext3_get_inode_loc(inode, iloc);
@@ -3442,7 +3482,8 @@ ext3_reserve_inode_write(handle_t *handle, struct inode *inode,
  */
 int ext3_mark_inode_dirty(handle_t *handle, struct inode *inode)
 {
-	struct ext3_iloc iloc;
+  //      printk("ext3_mark_inode_dirty\n");
+        struct ext3_iloc iloc;
 	int err;
 
 	might_sleep();
@@ -3469,10 +3510,12 @@ int ext3_mark_inode_dirty(handle_t *handle, struct inode *inode)
  */
 void ext3_dirty_inode(struct inode *inode, int flags)
 {
+        printk(KERN_INFO "ext3_dirty_inode \n");
 	handle_t *current_handle = ext3_journal_current_handle();
 	handle_t *handle;
 
 	handle = ext3_journal_start(inode, 2);
+        printk(KERN_INFO "ext3_dirty_inode/journal_start 2 nblocks\n");
 	if (IS_ERR(handle))
 		goto out;
 	if (current_handle &&
@@ -3500,6 +3543,7 @@ out:
  */
 static int ext3_pin_inode(handle_t *handle, struct inode *inode)
 {
+  printk(KERN_INFO "ext3_pin_inode \n");
 	struct ext3_iloc iloc;
 
 	int err = 0;
@@ -3521,10 +3565,10 @@ static int ext3_pin_inode(handle_t *handle, struct inode *inode)
 
 int ext3_change_inode_journal_flag(struct inode *inode, int val)
 {
-	journal_t *journal;
+        journal_t *journal;
 	handle_t *handle;
 	int err;
-
+        printk(KERN_INFO "ext3_change_inode_journal_flag\n");
 	/*
 	 * We have to be very careful here: changing a data block's
 	 * journaling status dynamically is dangerous.  If we write a
@@ -3561,6 +3605,7 @@ int ext3_change_inode_journal_flag(struct inode *inode, int val)
 	/* Finally we can mark the inode as dirty. */
 
 	handle = ext3_journal_start(inode, 1);
+        printk(KERN_INFO "ext3_change_inode_journal_flag/ext3_journal_start 1 nblocks\n");
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -3568,6 +3613,6 @@ int ext3_change_inode_journal_flag(struct inode *inode, int val)
 	handle->h_sync = 1;
 	ext3_journal_stop(handle);
 	ext3_std_error(inode->i_sb, err);
-
+        
 	return err;
 }
