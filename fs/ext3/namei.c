@@ -1456,7 +1456,10 @@ static int ext3_add_entry (handle_t *handle, struct dentry *dentry,
 		dx_fallback++;
 		ext3_mark_inode_dirty(handle, dir);
 	}
+        printk(KERN_INFO "ext3_add_entry/dir->i_size=%u",dir->i_size);
+        printk(KERN_INFO "sb->s_blocksize_bits=%u", sb->s_blocksize_bits);
 	blocks = dir->i_size >> sb->s_blocksize_bits;
+        printk(KERN_INFO "blocks = %u", blocks);
 	for (block = 0; block < blocks; block++) {
 		if (!(bh = ext3_dir_bread(handle, dir, block, 0, &retval)))
 			return retval;

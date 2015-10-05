@@ -23,5 +23,6 @@ static inline struct buffer_head *ext3_dir_bread(handle_t *handle,
 			   inode->i_ino);
 		return NULL;
 	}
+        printk(KERN_INFO "ext3_dir_bread/block= %d",block);
 	return bh;
 }
